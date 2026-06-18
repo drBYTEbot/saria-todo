@@ -1,15 +1,6 @@
-let todos = JSON.parse(localStorage.getItem('todos')) || getDefaults();
+const API = '/api/todos';
+let todos = [];
 let filter = 'all';
-
-function getDefaults() {
-  return [
-    { id: 1, text: 'Build something amazing', done: false, user: 'saria', likes: 3, time: '2h ago' },
-    { id: 2, text: 'Design the UI', done: true, user: 'saria', likes: 7, time: '4h ago' },
-    { id: 3, text: 'Deploy to production', done: false, user: 'saria', likes: 1, time: '6h ago' },
-  ];
-}
-
-function save() { localStorage.setItem('todos', JSON.stringify(todos)); }
 
 const feed = document.getElementById('feed');
 const form = document.getElementById('todoForm');
@@ -20,19 +11,17 @@ input.addEventListener('input', () => {
   postBtn.disabled = !input.value.trim();
 });
 
-form.addEventListener('submit', (e) => {
+form.addEventListener('submit', async (e) => {
   e.preventDefault();
   const text = input.value.trim();
   if (!text) return;
-  todos.unshift({
-    id: Date.now(),
-    text,
-    done: false,
-    user: 'saria',
-    likes: 0,
-    time: 'just now',
+  const res = await fetch(API, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
   });
-  save();
+  const todo = await res.json();
+  todos.unshift(todo);
   input.value = '';
   postBtn.disabled = true;
   render();
@@ -51,9 +40,15 @@ document.getElementById('navAdd').addEventListener('click', () => {
   input.focus();
 });
 
+async function loadTodos() {
+  const res = await fetch(API);
+  todos = await res.json();
+  render();
+}
+
 function render() {
   let filtered = [...todos];
-  if (filter === 'today') filtered = filtered.filter(t => t.time === 'just now');
+  if (filter === 'today') filtered = filtered.filter(t => t.time === 'now');
   else if (filter === 'done') filtered = filtered.filter(t => t.done);
   else if (filter === 'liked') filtered = filtered.filter(t => t.likes > 0);
 
@@ -104,28 +99,36 @@ function render() {
   `).join('');
 }
 
-feed.addEventListener('click', (e) => {
+feed.addEventListener('click', async (e) => {
   const btn = e.target.closest('[data-action]');
   if (!btn) return;
   const card = btn.closest('.card');
-  const id = parseInt(card.dataset.id);
+  const id = card.dataset.id;
   const action = btn.dataset.action;
-  const todo = todos.find(t => t.id === id);
-  if (!todo) return;
 
   if (action === 'toggle') {
+    const todo = todos.find(t => t.id == id);
     todo.done = !todo.done;
-    save();
+    await fetch(`${API}/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ done: todo.done }),
+    });
     render();
   } else if (action === 'like') {
+    const todo = todos.find(t => t.id == id);
     todo.likes = todo.likes > 0 ? 0 : todo.likes + 1;
-    save();
+    await fetch(`${API}/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ likes: todo.likes }),
+    });
     render();
   } else if (action === 'delete') {
-    todos = todos.filter(t => t.id !== id);
-    save();
+    todos = todos.filter(t => t.id != id);
+    await fetch(`${API}/${id}`, { method: 'DELETE' });
     render();
   }
 });
 
-render();
+loadTodos();

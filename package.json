@@ -1,0 +1,12 @@
+{
+  "name": "saria-todo",
+  "version": "1.0.0",
+  "description": "Instagram-style Todo App",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
